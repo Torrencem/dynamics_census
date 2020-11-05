@@ -7,6 +7,8 @@ extern crate anyhow;
 use anyhow::Error;
 use anyhow::Context;
 
+mod sigma_invariants;
+
 // use num_field_quad::*;
 
 #[derive(Clone, Copy, Debug)]
