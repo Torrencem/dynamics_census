@@ -75,8 +75,11 @@ dependencies = [
 name = "dynamics_census"
 version = "0.1.0"
 dependencies = [
+ "alga",
  "anyhow",
+ "num-traits",
  "num_field_quad",
+ "polynomial",
  "regex",
 ]
 
@@ -168,6 +171,16 @@ dependencies = [
  "alga_derive",
  "derive_more",
  "lazy_static",
+ "num-traits",
+ "polynomial",
+]
+
+[[package]]
+name = "polynomial"
+version = "0.1.0"
+dependencies = [
+ "alga",
+ "alga_derive",
  "num-traits",
 ]
 

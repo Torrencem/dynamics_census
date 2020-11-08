@@ -6,5 +6,8 @@ edition = "2018"
 
 [dependencies]
 num_field_quad = { path = "../num_field_quad" }
+polynomial = { path = "../polynomial-rs" }
 regex = "1"
 anyhow = "1"
+num-traits = "0.2.4"
+alga = "0.9.3"

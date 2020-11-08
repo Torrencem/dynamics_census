@@ -8,8 +8,9 @@ use anyhow::Error;
 use anyhow::Context;
 
 mod sigma_invariants;
-
-// use num_field_quad::*;
+mod mod_p;
+extern crate polynomial;
+extern crate num_field_quad;
 
 #[derive(Clone, Copy, Debug)]
 enum ProjectivePoint {
