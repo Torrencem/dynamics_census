@@ -8,11 +8,16 @@ use anyhow::Error;
 use anyhow::Context;
 
 mod sigma_invariants;
+use sigma_invariants::*;
 mod mod_p;
+use mod_p::*;
 extern crate polynomial;
 extern crate num_field_quad;
 
-#[derive(Clone, Copy, Debug)]
+use polynomial::{resultant, Polynomial};
+use num_field_quad::*;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ProjectivePoint {
     Finite(u16),
     Infinite,
@@ -153,6 +158,146 @@ impl FromStr for DB {
 
         Ok(DB { inner: result })
     }
+}
+
+// From paper: Subroutine 2A
+fn check_rational_periods(numer: Polynomial<ZiElement<i64>>, denom: Polynomial<ZiElement<i64>>, primes: &[u16], db: &DB, crit_pt_a: QFElement<i64>, crit_pt_b: QFElement<i64>) -> bool {
+    // NOTE! This function has not been tested yet.
+    use std::collections::HashSet;
+
+    let res = if numer.degree() < denom.degree() {
+        resultant(denom.clone(), numer.clone())
+    } else {
+        resultant(numer.clone(), denom.clone())
+    };
+    
+    assert!(crit_pt_a.is_rational());
+    assert!(crit_pt_b.is_rational());
+    // let crit_pts = critical_points(numer.clone(), denom.clone());
+
+    let mut poss_period_1 = HashSet::new();
+    let mut poss_period_2 = HashSet::new();
+
+    for p in primes.iter() {
+        let crit_1 = match crit_pt_a.b % (*p as i64) {
+            0 => ProjectivePoint::Infinite,
+            b => ProjectivePoint::Finite((crit_pt_a.a * mod_inverse(b, *p as i64)).rem_euclid(*p as i64) as u16),
+        };
+        let crit_2 = match crit_pt_b.b % (*p as i64) {
+            0 => ProjectivePoint::Infinite,
+            b => ProjectivePoint::Finite((crit_pt_b.a * mod_inverse(b, *p as i64)).rem_euclid(*p as i64) as u16),
+        };
+
+        if res.reduce_mod(*p as i64) == 0 {
+            continue;
+        }
+
+        // reduce phi mod p
+        let reduced_numer = Polynomial::new(
+            {
+                let mut res = vec![];
+                for entry in numer.data() {
+                    res.push(ModPElt {
+                        val: (*entry).reduce_mod(*p as i64),
+                        p: *p as u32,
+                    });
+                }
+                res
+            }
+        );
+        let reduced_denom = Polynomial::new(
+            {
+                let mut res = vec![];
+                for entry in denom.data() {
+                    res.push(ModPElt {
+                        val: (*entry).reduce_mod(*p as i64),
+                        p: *p as u32,
+                    });
+                }
+                res
+            }
+        );
+        let map = FiniteQuadraticMap {
+            numer: reduced_numer,
+            denom: reduced_denom,
+        };
+        let [s1, s2, s3] = map.sigma_invariants();
+        let morphism: Morphism = Morphism {
+            b: s1.val as u16,
+            c: s2.val as u16,
+        };
+
+        // Look up psi in the database
+        let dbentry = db.inner.get(p).unwrap().get(&morphism).unwrap();
+        
+        // Let i = 1
+        // Retrieve the set of possible global periods for crit_1
+        let possible_periods = if dbentry.l1 == crit_1 {
+            dbentry.l1_entry
+        } else {
+            dbentry.l2_entry
+        };
+        if poss_period_1.is_empty() {
+            // This is the first good prime
+            match possible_periods {
+                CriticalPointEntry::Single(x) => {
+                    poss_period_1.insert(x);
+                },
+                CriticalPointEntry::Double(x, y) => {
+                    poss_period_1.insert(x);
+                    poss_period_1.insert(y);
+                }
+            }
+        } else {
+            match possible_periods {
+                CriticalPointEntry::Single(x) => {
+                    poss_period_1.retain(|&val| val == x);
+                },
+                CriticalPointEntry::Double(x, y) => {
+                    poss_period_1.retain(|&val| val == x || val == y);
+                }
+            }
+        }
+
+        if poss_period_1.is_empty() {
+            return false;
+        }
+        
+        // Let i = 2
+        // Retrieve the set of possible global periods for crit_1
+        let possible_periods = if dbentry.l1 == crit_2 {
+            dbentry.l1_entry
+        } else {
+            dbentry.l2_entry
+        };
+        if poss_period_2.is_empty() {
+            // This is the first good prime
+            match possible_periods {
+                CriticalPointEntry::Single(x) => {
+                    poss_period_2.insert(x);
+                },
+                CriticalPointEntry::Double(x, y) => {
+                    poss_period_2.insert(x);
+                    poss_period_2.insert(y);
+                }
+            }
+        } else {
+            match possible_periods {
+                CriticalPointEntry::Single(x) => {
+                    poss_period_2.retain(|&val| val == x);
+                },
+                CriticalPointEntry::Double(x, y) => {
+                    poss_period_2.retain(|&val| val == x || val == y);
+                }
+            }
+        }
+
+        if poss_period_2.is_empty() {
+            return false;
+        }
+    }
+
+    true
 }
 
 use std::env::args;

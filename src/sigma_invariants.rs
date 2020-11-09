@@ -8,8 +8,8 @@ use num_traits::{Zero, One};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FiniteQuadraticMap {
-    numer: Polynomial<ModPElt>,
-    denom: Polynomial<ModPElt>,
+    pub numer: Polynomial<ModPElt>,
+    pub denom: Polynomial<ModPElt>,
 }
 
 impl FiniteQuadraticMap {
