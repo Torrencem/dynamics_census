@@ -33,8 +33,6 @@ impl FiniteQuadraticMap {
         // as coefficients (https://arxiv.org/pdf/1908.03184.pdf, page 9 bottom)
         // Terminology and variable names in this section stolen from Sage
         let df = self.derivative();
-        dbg!(df.numer.pretty("z"));
-        dbg!(df.denom.pretty("z"));
         let fix_poly = self.numer.clone() - self.denom.clone() * Polynomial::new(vec![Zero::zero(), One::one()]);
         let mult_poly_w = df.denom;
         let mult_poly_1 = -df.numer;
@@ -55,7 +53,6 @@ impl FiniteQuadraticMap {
             );
         }
         let fix_poly: Polynomial<Polynomial<ModPElt>> = Polynomial::new(fix_poly_cont);
-        dbg!(mult_poly.pretty("z"));
         // Compute the resultant
         let res = if fix_poly.degree() >= mult_poly.degree() {
             resultant(fix_poly, mult_poly)

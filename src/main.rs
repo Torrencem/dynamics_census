@@ -514,8 +514,12 @@ fn main() -> Result<()> {
                         .collect::<Vec<&str>>()
                         .join("\n");
     
+    println!("Beginning to parse database...");
+
     // Finally construct the database
     let dbase = DB::from_str(&dbase_data)?;
+    
+    println!("Parsing complete! Running algorithm...");
 
     // We want the list of primes that are in the database as well
     let p_list: Vec<u16> = dbase
@@ -526,6 +530,40 @@ fn main() -> Result<()> {
 
     // TODO: Write an iterator for "fake bounded height" to give to FindPCFMaps
     // and run FindPCFMaps here
+
+    let mut values = (-100..100)
+        .into_iter()
+        .map(move |a| {
+            (-100..100)
+                .into_iter()
+                .map(move |b| {
+                    (-100..100)
+                    .into_iter()
+                    .map(move |c| {
+                        (-100..100)
+                        .into_iter()
+                        .map(move |d| {
+                            let a = QFElement::from_parts(a, 0, b, QuadraticField::from_c(-1));
+                            let b = QFElement::from_parts(c, 0, d, QuadraticField::from_c(-1));
+                            (a, b)
+                        })
+                        .collect::<Vec<_>>()
+                    })
+                    .flatten()
+                })
+                .flatten()
+        })
+        .flatten();
+
+    let pcf_maps = FindPCFMaps {
+        db: dbase,
+        primes: p_list,
+        iter: &mut values,
+    };
+
+    for pcf_map in pcf_maps {
+        dbg!(pcf_map);
+    }
 
     Ok(())
 }
