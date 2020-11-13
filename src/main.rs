@@ -332,18 +332,35 @@ fn check_irrational_periods(numer: Polynomial<ZiElement<i64>>, denom: Polynomial
                 res
             }
         );
+
+        // Make sure our map is degree 2 before computing any further
+        if reduced_numer.degree() != 2 || reduced_denom.degree() != 2 {
+            continue;
+        }
+
         let map = FiniteQuadraticMap {
             numer: reduced_numer,
             denom: reduced_denom,
         };
+
         let [s1, s2, s3] = map.sigma_invariants();
         let morphism: Morphism = Morphism {
             b: s1.val as u16,
             c: s2.val as u16,
         };
-
+        
         // Look up psi in the database
-        let dbentry = db.inner.get(p).unwrap().get(&morphism).unwrap();
+        let dbentry = db.inner
+            .get(p).unwrap()
+            .get(&morphism);
+
+        if dbentry.is_none() {
+            // Then our map is conjugate to one of lower degree
+            // so skip it
+            continue;
+        }
+
+        let dbentry = dbentry.unwrap();
         
         if poss_per.is_empty() {
             // This is the first good prime
@@ -443,6 +460,8 @@ impl<'a, Iter: Iterator<Item = (QFElement<i64>, QFElement<i64>)>> Iterator for F
                     // crit_n is a QFElement<ZiElement<i64>> but we just want a QFElement<i64>
                     // but if crit_n.field.c is_square, we can take a square root and
                     // simplify to a QFElement<i64> where c == -1.
+                    // TODO: This has the potential for overflow problems! I don't know how to fix
+                    // them...
                     match (crit_1.field.c.square_root(), crit_2.field.c.square_root()) {
                         (Some(c1s), Some(c2s)) => {
                             Some((
@@ -517,16 +536,28 @@ fn main() -> Result<()> {
     println!("Beginning to parse database...");
 
     // Finally construct the database
-    let dbase = DB::from_str(&dbase_data)?;
+    let mut dbase = DB::from_str(&dbase_data)?;
+
+    // Filter out primes p such that (-1).sqrt() doesn't exist mod p
+    dbase.inner.retain(|&p, _val| {
+        let p_elt = ModPElt { val: (p - 1) as i64, p: p as u32 };
+        !p_elt.sqrt().is_none()
+    });
     
     println!("Parsing complete! Running algorithm...");
 
     // We want the list of primes that are in the database as well
-    let p_list: Vec<u16> = dbase
+    let mut p_list: Vec<u16> = dbase
             .inner
             .keys()
             .cloned()
+            .filter(|val| {
+                // 281 was not finished in the data collection
+                *val != 281
+            })
             .collect();
+
+    p_list.sort();
 
     // TODO: Write an iterator for "fake bounded height" to give to FindPCFMaps
     // and run FindPCFMaps here
@@ -534,13 +565,13 @@ fn main() -> Result<()> {
     let mut values = (-100..100)
         .into_iter()
         .map(move |a| {
-            (-100..100)
+            (-10..10)
                 .into_iter()
                 .map(move |b| {
-                    (-100..100)
+                    (-10..10)
                     .into_iter()
                     .map(move |c| {
-                        (-100..100)
+                        (-10..10)
                         .into_iter()
                         .map(move |d| {
                             let a = QFElement::from_parts(a, 0, b, QuadraticField::from_c(-1));
